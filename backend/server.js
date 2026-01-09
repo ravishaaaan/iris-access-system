@@ -97,6 +97,14 @@ const ensureTransporter = () => {
     port,
     secure: port === 465, // True ONLY for 465. False for 587 (STARTTLS)
     auth: { user, pass },
+    // ⚠️ CRITICAL FIX FOR RENDER TIMEOUTS ⚠️
+    tls: {
+      ciphers: 'SSLv3',
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 10000,   // 10 seconds
+    socketTimeout: 10000,     // 10 seconds
   });
 
   return mailTransporter;
