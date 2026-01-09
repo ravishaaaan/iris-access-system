@@ -1,0 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	body {
+		@apply bg-midnight text-white font-body min-h-screen;
+		background: radial-gradient(circle at 20% 20%, rgba(110,243,165,0.12), transparent 25%),
+								radial-gradient(circle at 80% 0%, rgba(67,97,238,0.08), transparent 25%),
+								#0b1021;
+	}
+
+	* {
+		@apply antialiased;
+	}
+}
+
+@layer components {
+	.glass-card {
+		@apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-glass;
+	}
+
+	.pill-btn {
+		@apply px-5 py-2 rounded-full font-semibold transition duration-200 ease-out;
+	}
+}
