@@ -53,51 +53,6 @@ const usedWallets = new Set();
 
 // --- PDF GENERATOR ---
 const buildQrPdf = async ({ name, email, wallet, qrPayload }) => {
-  const qrDataUrl = await QRCode.toDataURL(qrPayload || wallet);
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 50 });
-    const chunks = [];
-    doc.on('data', (chunk) => chunks.push(chunk));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', reject);
-
-    doc.fontSize(22).text('Iris Access Pass', { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(14).text(`Name: ${name || 'Guest'}`);
-    doc.text(`Email: ${email || 'N/A'}`);
-    doc.text(`Wallet: ${wallet || 'N/A'}`);
-    doc.moveDown();
-    doc.image(Buffer.from(qrDataUrl.split(',')[1], 'base64'), { fit: [250, 250], align: 'center' });
-    doc.end();
-  });
-};
-
-console.log("✅ Backend Started");
-console.log("📍 Contract:", CONTRACT_ADDRESS);
-
-// --- ENDPOINTS ---
-
-// 1. NEW ENDPOINT: Download PDF Directly
-app.post('/api/download-qr', async (req, res) => {
-    try {
-        const { name, email, wallet } = req.body;
-        console.log(`📥 Generating PDF download for: ${name}`);
-        const pdfBuffer = await buildQrPdf({ name, email, wallet, qrPayload: wallet });
-        
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=iris-pass-${wallet.slice(0,6)}.pdf`);
-        res.send(pdfBuffer);
-    } catch (error) {
-        console.error("PDF Error:", error);
-        res.status(500).send("Error generating PDF");
-    }
-});
-
-app.post('/api/validate-code', async (req, res) => {
-  try {
-    const isValid = await contract.validateAccessCode(req.body.code);
-    res.json({ valid: isValid });
-const buildQrPdf = async ({ name, email, wallet, qrPayload }) => {
   // Generate a high-resolution QR as Data URL (larger width for crisp printing)
   const qrDataUrl = await QRCode.toDataURL(qrPayload || wallet, {
     width: 1024,
@@ -185,25 +140,35 @@ const buildQrPdf = async ({ name, email, wallet, qrPayload }) => {
 
     doc.end();
   });
+};
 
-    const tx = await contract.registerUser(
-      userWallet, accessCode, name, email, phone, idNumber, question, answer, reducedHashes,
-      { gasLimit: 3000000 }
-    );
-    
-    console.log(`⏳ TX Sent: ${tx.hash}`);
-    const receipt = await tx.wait();
-    console.log(`✅ Mined in Block: ${receipt.blockNumber}`);
+console.log("✅ Backend Started");
+console.log("📍 Contract:", CONTRACT_ADDRESS);
 
-    // Skip email logic since we have the download button now
-    // This avoids the timeout error appearing in logs
+// --- ENDPOINTS ---
 
-    res.json({ success: true, txHash: tx.hash });
-  } catch (error) {
-    if (error.message.includes("Wallet already registered")) {
-        return res.status(400).json({ success: false, error: 'Wallet already registered' });
+// 1. NEW ENDPOINT: Download PDF Directly
+app.post('/api/download-qr', async (req, res) => {
+    try {
+        const { name, email, wallet } = req.body;
+        console.log(`📥 Generating PDF download for: ${name}`);
+        const pdfBuffer = await buildQrPdf({ name, email, wallet, qrPayload: wallet });
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=iris-pass-${wallet.slice(0,6)}.pdf`);
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error("PDF Error:", error);
+        res.status(500).send("Error generating PDF");
     }
-    console.error("❌ Registration Error:", error);
+});
+
+app.post('/api/validate-code', async (req, res) => {
+  try {
+    const isValid = await contract.validateAccessCode(req.body.code);
+    res.json({ valid: isValid });
+  } catch (error) {
+    console.error('Validation Error:', error);
     res.status(500).json({ error: error.message });
   }
 });
