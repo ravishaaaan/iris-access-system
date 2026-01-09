@@ -20,47 +20,54 @@ try {
 } catch (e) {
   console.warn("⚠️ Could not load ABI from artifacts. Falling back to inline ABI.");
   CONTRACT_ABI = [
-    {
-      inputs: [
-        { internalType: 'address', name: '_userWallet', type: 'address' },
-        { internalType: 'string', name: '_accessCode', type: 'string' },
-        { internalType: 'string', name: '_name', type: 'string' },
-        { internalType: 'string', name: '_email', type: 'string' },
-        { internalType: 'string', name: '_phone', type: 'string' },
-        { internalType: 'string', name: '_idNumber', type: 'string' },
-        { internalType: 'string', name: '_question', type: 'string' },
-        { internalType: 'string', name: '_answer', type: 'string' },
-        { internalType: 'string[]', name: '_faceHashes', type: 'string[]' },
-      ],
-      name: 'registerUser',
-      outputs: [],
-      stateMutability: 'nonpayable',
-      type: 'function',
-    },
-    {
-      inputs: [{ internalType: 'string', name: '_code', type: 'string' }],
-      name: 'validateAccessCode',
-      outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
-      stateMutability: 'view',
-      type: 'function',
-    },
-    {
-      inputs: [{ internalType: 'address', name: '_userAddress', type: 'address' }],
-      name: 'getUserProfile',
-      outputs: [
-        { internalType: 'string', name: 'name', type: 'string' },
-        { internalType: 'string', name: 'email', type: 'string' },
-        { internalType: 'string', name: 'phone', type: 'string' },
-        { internalType: 'string', name: 'idNumber', type: 'string' },
-        { internalType: 'string', name: 'securityQuestion', type: 'string' },
-        { internalType: 'string', name: 'securityAnswer', type: 'string' },
-        { internalType: 'string[]', name: 'faceHashes', type: 'string[]' },
-        { internalType: 'bool', name: 'isRegistered', type: 'bool' },
-      ],
-      stateMutability: 'view',
-      type: 'function',
-    },
-  ];
+  {
+    "inputs": [
+      { "internalType": "address", "name": "_userWallet", "type": "address" },
+      { "internalType": "string", "name": "_accessCode", "type": "string" },
+      { "internalType": "string", "name": "_name", "type": "string" },
+      { "internalType": "string", "name": "_email", "type": "string" },
+      { "internalType": "string", "name": "_phone", "type": "string" },
+      { "internalType": "string", "name": "_idNumber", "type": "string" }, // ✅ Added
+      { "internalType": "string", "name": "_question", "type": "string" },
+      { "internalType": "string", "name": "_answer", "type": "string" },
+      { "internalType": "string[]", "name": "_faceHashes", "type": "string[]" }
+    ],
+    "name": "registerUser",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "string", "name": "_code", "type": "string" }],
+    "name": "validateAccessCode",
+    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "address", "name": "_userAddress", "type": "address" }],
+    "name": "getUserProfile",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "string", "name": "name", "type": "string" },
+          { "internalType": "string", "name": "email", "type": "string" },
+          { "internalType": "string", "name": "phone", "type": "string" },
+          { "internalType": "string", "name": "idNumber", "type": "string" }, // ✅ Added (Critical Fix)
+          { "internalType": "string", "name": "securityQuestion", "type": "string" },
+          { "internalType": "string", "name": "securityAnswer", "type": "string" },
+          { "internalType": "string[]", "name": "faceHashes", "type": "string[]" },
+          { "internalType": "bool", "name": "isRegistered", "type": "bool" }
+        ],
+        "internalType": "struct IrisAccess.UserProfile",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+   }
+ ];
 }
 
 // Setup Provider & Wallet (ADMIN pays gas)
