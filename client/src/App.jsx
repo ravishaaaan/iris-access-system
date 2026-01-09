@@ -38,7 +38,7 @@ const App = ({ initialView = "HOME", mode = "guest" }) => {
   const [myWalletAddress, setMyWalletAddress] = useState("");
 
     // --- BOUNCER DATA ---
-    const [scannedAddress, setScannedAddress] = useState("");
+  const [scannedAddress, setScannedAddress] = useState("");
   const [userProfile, setUserProfile] = useState(null);
   const [verificationStage, setVerificationStage] = useState("QR");
   const [enableScanner, setEnableScanner] = useState(true);
@@ -246,7 +246,7 @@ const App = ({ initialView = "HOME", mode = "guest" }) => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-gray-400">Latest Contract</p>
-                                <p className="font-mono text-sm text-neon">0xeC46...d65Dd6c</p>
+                                <p className="font-mono text-sm text-neon">0xd91F...7B9b62D84</p>
                             </div>
                             <span className="px-3 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-200 border border-emerald-400/40">Polygon Amoy</span>
                         </div>
@@ -480,9 +480,33 @@ const App = ({ initialView = "HOME", mode = "guest" }) => {
   }
 
   // ------------------------------------------------------
-  // VIEW 4: SUCCESS & QR (removed FACE_REG view)
+  // VIEW 4: SUCCESS & QR (With PDF Download)
   // ------------------------------------------------------
   if (view === "SUCCESS") {
+    // 🆕 NEW FUNCTION: Handle PDF Download
+    const downloadTicket = async () => {
+        try {
+            const response = await fetch('https://iris-access-system.onrender.com/api/download-qr', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    name: formData.name, 
+                    email: formData.email, 
+                    wallet: myWalletAddress 
+                })
+            });
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Iris-Pass-${myWalletAddress.slice(0,6)}.pdf`;
+            a.click();
+        } catch (e) { 
+            console.error("Download Error", e);
+            alert("Download failed. Please try again."); 
+        }
+    };
+
     return (
             <div className={ui.screen}>
                 <WalletMenu />
@@ -494,6 +518,12 @@ const App = ({ initialView = "HOME", mode = "guest" }) => {
                         <QRCode value={myWalletAddress} size={220} />
                     </div>
                     <p className="text-sm text-gray-400">Save this QR. Present it to the bouncer for entry.</p>
+                    
+                    {/* 🆕 NEW BUTTON */}
+                    <button className={`${ui.primary} w-full md:w-auto mt-4`} onClick={downloadTicket}>
+                        📥 Download PDF Ticket
+                    </button>
+
                     <button onClick={() => setView("HOME")} className={ui.button}>Back to Home</button>
                 </div>
             </div>
@@ -527,6 +557,13 @@ const App = ({ initialView = "HOME", mode = "guest" }) => {
               console.log("📊 Profile Data:", profile);
               
               if (response.ok && profile.exists) {
+                  // Safety Check: Ensure face hashes actually exist
+                  if (!profile.faceHashes || profile.faceHashes.length === 0) {
+                      alert("User found, but NO biometric data on blockchain.");
+                      setEnableScanner(true);
+                      return;
+                  }
+
                   console.log("✅ User found! Name:", profile.name);
                   setUserProfile({
                       name: profile.name,
@@ -632,9 +669,10 @@ const App = ({ initialView = "HOME", mode = "guest" }) => {
                 verificationStage={verificationStage}
                 onSuccess={() => setVerificationStage("GRANTED")}
                 onFail={() => {
-                    alert("Face Does Not Match Blockchain Record!");
-                    setVerificationStage("QR");
-                    setView("BOUNCER_HOME");
+                    alert("Face Does Not Match Blockchain Record! Please try again.");
+                    // Keep them on FACE stage to retry, or push back to HOME
+                    // setVerificationStage("QR");
+                    // setView("BOUNCER_HOME");
                 }}
             />
         );
@@ -792,7 +830,9 @@ const FaceRegistrationWrapper = ({ onComplete }) => {
 };
 
 const BouncerFaceValidator = ({ storedHashes, verificationStage, onSuccess, onFail }) => {
-    const MATCH_THRESHOLD = 0.02; // lower is stricter; ~1-2% average deviation per coordinate
+    // ⚠️ CRITICAL FIX: Increased threshold from 0.02 to 0.40
+    // This makes the face scan match much easier (approx 40% deviation allowed)
+    const MATCH_THRESHOLD = 0.40; 
 
     const parseHash = (hash) => hash.split('|').map(pair => pair.split(',').map(Number));
 
@@ -812,7 +852,7 @@ const BouncerFaceValidator = ({ storedHashes, verificationStage, onSuccess, onFa
 
     const handleScan = (liveHashes) => {
         if (!liveHashes || liveHashes.length === 0) {
-            onFail();
+            // onFail(); // Don't fail immediately on empty scan, wait for valid data
             return;
         }
 

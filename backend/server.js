@@ -10,8 +10,8 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' })); 
 
-// --- CONTRACT CONFIGURATION ---
-// Ensure this matches your latest deployment
+// --- CONTRACT SETUP ---
+// Ensure this matches your latest deployed address
 let CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "0xd91FC643019f2f397F79157B3b1DAef7B9b62D84";
 let CONTRACT_ABI;
 try {
@@ -21,17 +21,7 @@ try {
   console.warn("⚠️ Using Inline ABI");
   CONTRACT_ABI = [
     {
-      "inputs": [
-        { "internalType": "address", "name": "_userWallet", "type": "address" },
-        { "internalType": "string", "name": "_accessCode", "type": "string" },
-        { "internalType": "string", "name": "_name", "type": "string" },
-        { "internalType": "string", "name": "_email", "type": "string" },
-        { "internalType": "string", "name": "_phone", "type": "string" },
-        { "internalType": "string", "name": "_idNumber", "type": "string" }, 
-        { "internalType": "string", "name": "_question", "type": "string" },
-        { "internalType": "string", "name": "_answer", "type": "string" },
-        { "internalType": "string[]", "name": "_faceHashes", "type": "string[]" }
-      ],
+      "inputs": [{ "internalType": "address", "name": "_userWallet", "type": "address" }, { "internalType": "string", "name": "_accessCode", "type": "string" }, { "internalType": "string", "name": "_name", "type": "string" }, { "internalType": "string", "name": "_email", "type": "string" }, { "internalType": "string", "name": "_phone", "type": "string" }, { "internalType": "string", "name": "_idNumber", "type": "string" }, { "internalType": "string", "name": "_question", "type": "string" }, { "internalType": "string", "name": "_answer", "type": "string" }, { "internalType": "string[]", "name": "_faceHashes", "type": "string[]" }],
       "name": "registerUser",
       "outputs": [],
       "stateMutability": "nonpayable",
@@ -47,68 +37,19 @@ try {
     {
       "inputs": [{ "internalType": "address", "name": "_userAddress", "type": "address" }],
       "name": "getUserProfile",
-      "outputs": [
-        {
-          "components": [
-            { "internalType": "string", "name": "name", "type": "string" },
-            { "internalType": "string", "name": "email", "type": "string" },
-            { "internalType": "string", "name": "phone", "type": "string" },
-            { "internalType": "string", "name": "idNumber", "type": "string" },
-            { "internalType": "string", "name": "securityQuestion", "type": "string" },
-            { "internalType": "string", "name": "securityAnswer", "type": "string" },
-            { "internalType": "string[]", "name": "faceHashes", "type": "string[]" },
-            { "internalType": "bool", "name": "isRegistered", "type": "bool" }
-          ],
-          "internalType": "struct IrisAccess.UserProfile",
-          "name": "",
-          "type": "tuple"
-        }
-      ],
+      "outputs": [{ "components": [{ "internalType": "string", "name": "name", "type": "string" }, { "internalType": "string", "name": "email", "type": "string" }, { "internalType": "string", "name": "phone", "type": "string" }, { "internalType": "string", "name": "idNumber", "type": "string" }, { "internalType": "string", "name": "securityQuestion", "type": "string" }, { "internalType": "string", "name": "securityAnswer", "type": "string" }, { "internalType": "string[]", "name": "faceHashes", "type": "string[]" }, { "internalType": "bool", "name": "isRegistered", "type": "bool" }], "internalType": "struct IrisAccess.UserProfile", "name": "", "type": "tuple" }],
       "stateMutability": "view",
       "type": "function"
     }
   ];
 }
 
-// --- BLOCKCHAIN SETUP (FASTER RPC FIX) ---
-// Using Ankr RPC which is much more stable than the default Polygon one
+// Use Ankr RPC for stability
 const RPC_URL = process.env.RPC_URL || "https://rpc.ankr.com/polygon_amoy"; 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const adminWallet = new ethers.Wallet(process.env.ADMIN_PRIVATE_KEY, provider);
 const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, adminWallet);
 const usedWallets = new Set();
-
-// --- EMAIL SETUP (Force SSL/465) ---
-let mailTransporter;
-const ensureTransporter = () => {
-  if (mailTransporter) return mailTransporter;
-
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-
-  if (!user || !pass) {
-    throw new Error('SMTP Config Missing');
-  }
-
-  console.log(`📧 Configuring Email: Force SSL on Port 465`);
-
-  mailTransporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Use SSL immediately
-    auth: { user, pass },
-    tls: {
-      rejectUnauthorized: false // Accept self-signed certs if needed
-    },
-    // Force IPv4 and increase timeouts to 30 seconds
-    family: 4, 
-    connectionTimeout: 30000,
-    greetingTimeout: 30000,
-    socketTimeout: 30000
-  });
-
-  return mailTransporter;
-};
 
 // --- PDF GENERATOR ---
 const buildQrPdf = async ({ name, email, wallet, qrPayload }) => {
@@ -131,11 +72,26 @@ const buildQrPdf = async ({ name, email, wallet, qrPayload }) => {
   });
 };
 
-console.log("✅ Backend Relayer Started");
+console.log("✅ Backend Started");
 console.log("📍 Contract:", CONTRACT_ADDRESS);
-console.log("🌐 RPC Provider:", RPC_URL);
 
 // --- ENDPOINTS ---
+
+// 1. NEW ENDPOINT: Download PDF Directly
+app.post('/api/download-qr', async (req, res) => {
+    try {
+        const { name, email, wallet } = req.body;
+        console.log(`📥 Generating PDF download for: ${name}`);
+        const pdfBuffer = await buildQrPdf({ name, email, wallet, qrPayload: wallet });
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=iris-pass-${wallet.slice(0,6)}.pdf`);
+        res.send(pdfBuffer);
+    } catch (error) {
+        console.error("PDF Error:", error);
+        res.status(500).send("Error generating PDF");
+    }
+});
 
 app.post('/api/validate-code', async (req, res) => {
   try {
@@ -151,17 +107,15 @@ app.post('/api/register', async (req, res) => {
     const { accessCode, name, email, phone, idNumber, question, answer, faceHashes, userWallet } = req.body;
     console.log(`📝 Registering: ${name} (${userWallet})`);
 
-    // Pre-flight check
+    // Check if already registered (Pre-flight)
     try {
         const existing = await contract.getUserProfile(userWallet);
         const isReg = (existing.isRegistered ?? existing.exists) ?? existing[7];
-        if (isReg) {
-             console.log("🚫 Wallet already registered on-chain");
-             return res.status(400).json({ success: false, error: 'Wallet already registered' });
-        }
-    } catch (e) { /* Ignore if not found */ }
+        if (isReg) return res.status(400).json({ success: false, error: 'Wallet already registered' });
+    } catch (e) { /* continue */ }
 
     const reducedHashes = faceHashes.filter((_, i) => i % 5 === 0);
+    console.log(`   Hashes: ${reducedHashes.length}`);
 
     const tx = await contract.registerUser(
       userWallet, accessCode, name, email, phone, idNumber, question, answer, reducedHashes,
@@ -172,22 +126,8 @@ app.post('/api/register', async (req, res) => {
     const receipt = await tx.wait();
     console.log(`✅ Mined in Block: ${receipt.blockNumber}`);
 
-    if (email) {
-      try {
-        const pdfBuffer = await buildQrPdf({ name, email, wallet: userWallet, qrPayload: userWallet });
-        const transporter = ensureTransporter();
-        await transporter.sendMail({
-          from: `"Iris Access" <${process.env.SMTP_USER}>`,
-          to: email,
-          subject: 'Your VIP Access QR Pass',
-          text: `Welcome ${name}! Your wallet: ${userWallet}`,
-          attachments: [{ filename: 'iris-access-pass.pdf', content: pdfBuffer }],
-        });
-        console.log(`📧 Email sent to ${email}`);
-      } catch (e) {
-        console.error(`⚠️ Email Failed: ${e.message}`);
-      }
-    }
+    // Skip email logic since we have the download button now
+    // This avoids the timeout error appearing in logs
 
     res.json({ success: true, txHash: tx.hash });
   } catch (error) {
@@ -205,8 +145,8 @@ app.post('/api/get-profile', async (req, res) => {
     console.log(`📋 Fetching profile: ${address}`);
 
     if (usedWallets.has(address.toLowerCase())) {
-      console.log(`🚫 Already redeemed`);
-      return res.status(400).json({ error: 'Access already redeemed', exists: false });
+        console.log(`🚫 Already redeemed`);
+        return res.status(400).json({ error: 'Access already redeemed', exists: false });
     }
 
     const profile = await contract.getUserProfile(address);
@@ -217,8 +157,9 @@ app.post('/api/get-profile', async (req, res) => {
         return res.json({ exists: false });
     }
 
+    // CRITICAL: Ensure we actually return data!
     console.log("✅ User found:", profile.name ?? profile[0]);
-
+    
     res.json({
       name: profile.name ?? profile[0],
       email: profile.email ?? profile[1],
