@@ -95,7 +95,7 @@ const ensureTransporter = () => {
   mailTransporter = nodemailer.createTransport({
     host,
     port,
-    secure: port === 465,
+    secure: true,
     auth: { user, pass },
   });
 
