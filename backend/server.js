@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' })); // Allow large payloads
 
 // Contract Configuration
-let CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "0xeC46Cf1ea6DC71B062942d2dE16796526d65Dd6c";
+let CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "error";
 let CONTRACT_ABI;
 try {
   // Adjust relative path from backend/ to artifacts/
@@ -214,9 +214,9 @@ app.post('/api/register', async (req, res) => {
         const transporter = ensureTransporter();
 
         await transporter.sendMail({
-          from: process.env.SMTP_FROM,
+          from: `"Secure Access" <${process.env.SMTP_FROM}>`,
           to: email,
-          subject: 'Your Iris Access QR Pass',
+          subject: 'Your VIP Access QR Pass',
           text: `Hi ${name},\n\nCongratulations! Your biometric profile has been registered on-chain.\n\nAttached is your single-use QR pass for event entry.\n\nWallet: ${userWallet}\n\nKeep this code private and secure.\n\nBest regards,\nIris Access Team`,
           html: `<h2>Welcome to Iris Access, ${name}!</h2><p>Your registration is complete. Present the attached QR code at the event entrance.</p><p><strong>Wallet:</strong> ${userWallet}</p><p>Keep this code secure.</p>`,
           attachments: [
