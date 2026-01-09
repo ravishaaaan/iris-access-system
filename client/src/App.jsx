@@ -278,7 +278,7 @@ const App = ({ initialView = "HOME", mode = "guest" }) => {
         try {
             setLoading(true);
             // Call backend API (no gas required)
-            const response = await fetch('http://localhost:3001/api/validate-code', {
+            const response = await fetch('https://iris-access-system.onrender.com/api/validate-code', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code: accessCode })
@@ -354,7 +354,7 @@ const App = ({ initialView = "HOME", mode = "guest" }) => {
             console.log("Access Code:", accessCode);
 
             // Call backend API (ADMIN PAYS GAS)
-            const response = await fetch('http://localhost:3001/api/register', {
+            const response = await fetch('https://iris-access-system.onrender.com/api/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -516,7 +516,7 @@ const App = ({ initialView = "HOME", mode = "guest" }) => {
           console.log("🔍 QR Scanned Address:", scannedAddr);
           try {
               console.log("📋 Fetching profile for:", scannedAddr);
-              const response = await fetch('http://localhost:3001/api/get-profile', {
+              const response = await fetch('https://iris-access-system.onrender.com/api/get-profile', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ address: scannedAddr })
@@ -644,7 +644,7 @@ const App = ({ initialView = "HOME", mode = "guest" }) => {
     if (verificationStage === "GRANTED") {
         // Mark the wallet as validated on backend
         if (scannedAddress) {
-            fetch('http://localhost:3001/api/mark-validated', {
+            fetch('https://iris-access-system.onrender.com/api/mark-validated', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ address: scannedAddress })
