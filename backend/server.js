@@ -97,25 +97,94 @@ app.post('/api/validate-code', async (req, res) => {
   try {
     const isValid = await contract.validateAccessCode(req.body.code);
     res.json({ valid: isValid });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+const buildQrPdf = async ({ name, email, wallet, qrPayload }) => {
+  // Generate a high-resolution QR as Data URL (larger width for crisp printing)
+  const qrDataUrl = await QRCode.toDataURL(qrPayload || wallet, {
+    width: 1024,
+    margin: 1,
+    color: {
+      dark: '#000000',
+      light: '#ffffff'
+    }
+  });
 
-app.post('/api/register', async (req, res) => {
-  try {
-    const { accessCode, name, email, phone, idNumber, question, answer, faceHashes, userWallet } = req.body;
-    console.log(`📝 Registering: ${name} (${userWallet})`);
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: 'A4', margin: 36 });
+    const chunks = [];
 
-    // Check if already registered (Pre-flight)
-    try {
-        const existing = await contract.getUserProfile(userWallet);
-        const isReg = (existing.isRegistered ?? existing.exists) ?? existing[7];
-        if (isReg) return res.status(400).json({ success: false, error: 'Wallet already registered' });
-    } catch (e) { /* continue */ }
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
 
-    const reducedHashes = faceHashes.filter((_, i) => i % 5 === 0);
-    console.log(`   Hashes: ${reducedHashes.length}`);
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+
+    // Background
+    doc.rect(0, 0, pageWidth, pageHeight).fill('#0b0f14');
+
+    // Card (luxury panel)
+    const cardWidth = 420;
+    const cardHeight = 560;
+    const cardX = (pageWidth - cardWidth) / 2;
+    const cardY = (pageHeight - cardHeight) / 2;
+
+    // subtle shadow
+    doc.save();
+    doc.roundedRect(cardX + 6, cardY + 8, cardWidth, cardHeight, 14).fillOpacity(0.12).fill('#000000');
+    doc.restore();
+
+    // main card
+    doc.roundedRect(cardX, cardY, cardWidth, cardHeight, 14).fill('#0f1720');
+
+    // gold frame
+    doc.roundedRect(cardX + 8, cardY + 8, cardWidth - 16, cardHeight - 16, 10)
+       .lineWidth(3)
+       .strokeColor('#D4AF37')
+       .stroke();
+
+    // Header
+    doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold');
+    doc.text('Iris Access Pass', cardX + 24, cardY + 22, { align: 'left' });
+
+    // Subtitle / small details
+    doc.fontSize(10).fillColor('#cbd5e1').font('Helvetica');
+    doc.text(`${name || 'Guest'}`, cardX + 24, cardY + 50);
+    doc.moveTo(cardX + 24, cardY + 74);
+
+    // Draw white rounded box for QR (to ensure crisp scan against dark card)
+    const qrBoxSize = 340;
+    const qrBoxX = cardX + (cardWidth - qrBoxSize) / 2;
+    const qrBoxY = cardY + 92;
+
+    doc.roundedRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 12).fill('#ffffff');
+
+    // Embed QR image centered inside qrBox
+    const qrBase64 = qrDataUrl.replace(/^data:image\/png;base64,/, '');
+    const qrBuffer = Buffer.from(qrBase64, 'base64');
+    // leave padding inside white box
+    const innerPadding = 28;
+    const imgSize = qrBoxSize - innerPadding * 2;
+    const imgX = qrBoxX + innerPadding;
+    const imgY = qrBoxY + innerPadding;
+    doc.image(qrBuffer, imgX, imgY, { width: imgSize, height: imgSize });
+
+    // Bottom text: wallet and instructions
+    doc.fillColor('#e2e8f0').fontSize(11).font('Helvetica');
+    const infoY = qrBoxY + qrBoxSize + 18;
+    doc.text('Present this QR at the venue entrance — single-use only.', cardX + 28, infoY, { width: cardWidth - 56, align: 'center' });
+
+    doc.moveDown(0.5);
+    doc.font('Helvetica-Bold').fillColor('#ffffff').fontSize(10);
+    doc.text(`Wallet: ${wallet || 'N/A'}`, cardX + 28, infoY + 36, { width: cardWidth - 56, align: 'center' });
+
+    // Footer timestamp and small brand
+    doc.fontSize(8).fillColor('#94a3b8').font('Helvetica');
+    doc.text(`Generated: ${new Date().toISOString()}`, cardX + 28, cardY + cardHeight - 36, { align: 'left' });
+    doc.fontSize(9).fillColor('#D4AF37').font('Helvetica-Bold');
+    doc.text('Iris Access', cardX + 28, cardY + cardHeight - 36, { align: 'right', width: cardWidth - 56 });
+
+    doc.end();
+  });
 
     const tx = await contract.registerUser(
       userWallet, accessCode, name, email, phone, idNumber, question, answer, reducedHashes,
