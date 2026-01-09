@@ -11,6 +11,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' })); 
 
 // --- CONTRACT CONFIGURATION ---
+// Ensure this matches your latest deployment
 let CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "0xd91FC643019f2f397F79157B3b1DAef7B9b62D84";
 let CONTRACT_ABI;
 try {
@@ -69,13 +70,15 @@ try {
   ];
 }
 
-// --- BLOCKCHAIN SETUP ---
-const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || "https://rpc-amoy.polygon.technology/");
+// --- BLOCKCHAIN SETUP (FASTER RPC FIX) ---
+// Using Ankr RPC which is much more stable than the default Polygon one
+const RPC_URL = process.env.RPC_URL || "https://rpc.ankr.com/polygon_amoy"; 
+const provider = new ethers.JsonRpcProvider(RPC_URL);
 const adminWallet = new ethers.Wallet(process.env.ADMIN_PRIVATE_KEY, provider);
 const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, adminWallet);
 const usedWallets = new Set();
 
-// --- EMAIL SETUP (FIXED FOR GMAIL) ---
+// --- EMAIL SETUP (Force SSL/465) ---
 let mailTransporter;
 const ensureTransporter = () => {
   if (mailTransporter) return mailTransporter;
@@ -87,12 +90,21 @@ const ensureTransporter = () => {
     throw new Error('SMTP Config Missing');
   }
 
-  console.log(`📧 Configuring Email using Gmail Service`);
+  console.log(`📧 Configuring Email: Force SSL on Port 465`);
 
   mailTransporter = nodemailer.createTransport({
-    service: 'gmail', // ✅ Automatically handles Port 465/587 and TLS
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // Use SSL immediately
     auth: { user, pass },
-    family: 4 // ✅ Keep this to prevent IPv6 timeouts on Render
+    tls: {
+      rejectUnauthorized: false // Accept self-signed certs if needed
+    },
+    // Force IPv4 and increase timeouts to 30 seconds
+    family: 4, 
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 30000
   });
 
   return mailTransporter;
@@ -121,6 +133,7 @@ const buildQrPdf = async ({ name, email, wallet, qrPayload }) => {
 
 console.log("✅ Backend Relayer Started");
 console.log("📍 Contract:", CONTRACT_ADDRESS);
+console.log("🌐 RPC Provider:", RPC_URL);
 
 // --- ENDPOINTS ---
 
@@ -138,9 +151,17 @@ app.post('/api/register', async (req, res) => {
     const { accessCode, name, email, phone, idNumber, question, answer, faceHashes, userWallet } = req.body;
     console.log(`📝 Registering: ${name} (${userWallet})`);
 
-    // Reduce hashes
+    // Pre-flight check
+    try {
+        const existing = await contract.getUserProfile(userWallet);
+        const isReg = (existing.isRegistered ?? existing.exists) ?? existing[7];
+        if (isReg) {
+             console.log("🚫 Wallet already registered on-chain");
+             return res.status(400).json({ success: false, error: 'Wallet already registered' });
+        }
+    } catch (e) { /* Ignore if not found */ }
+
     const reducedHashes = faceHashes.filter((_, i) => i % 5 === 0);
-    console.log(`   Hashes reduced from ${faceHashes.length} to ${reducedHashes.length}`);
 
     const tx = await contract.registerUser(
       userWallet, accessCode, name, email, phone, idNumber, question, answer, reducedHashes,
@@ -151,13 +172,12 @@ app.post('/api/register', async (req, res) => {
     const receipt = await tx.wait();
     console.log(`✅ Mined in Block: ${receipt.blockNumber}`);
 
-    // Send Email
     if (email) {
       try {
         const pdfBuffer = await buildQrPdf({ name, email, wallet: userWallet, qrPayload: userWallet });
         const transporter = ensureTransporter();
         await transporter.sendMail({
-          from: `"Iris Access" <${process.env.SMTP_USER}>`, // Simple From
+          from: `"Iris Access" <${process.env.SMTP_USER}>`,
           to: email,
           subject: 'Your VIP Access QR Pass',
           text: `Welcome ${name}! Your wallet: ${userWallet}`,
@@ -171,6 +191,9 @@ app.post('/api/register', async (req, res) => {
 
     res.json({ success: true, txHash: tx.hash });
   } catch (error) {
+    if (error.message.includes("Wallet already registered")) {
+        return res.status(400).json({ success: false, error: 'Wallet already registered' });
+    }
     console.error("❌ Registration Error:", error);
     res.status(500).json({ error: error.message });
   }
@@ -187,12 +210,14 @@ app.post('/api/get-profile', async (req, res) => {
     }
 
     const profile = await contract.getUserProfile(address);
-    // Safe extraction
     const exists = (profile.isRegistered ?? profile.exists) ?? profile[7];
     
     if (!exists) {
+        console.log("⚠️ User not found on blockchain");
         return res.json({ exists: false });
     }
+
+    console.log("✅ User found:", profile.name ?? profile[0]);
 
     res.json({
       name: profile.name ?? profile[0],
