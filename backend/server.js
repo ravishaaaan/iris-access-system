@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' })); 
 
 // --- CONTRACT CONFIGURATION ---
-let CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "0xeC46Cf1ea6DC71B062942d2dE16796526d65Dd6c";
+let CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "0xd91FC643019f2f397F79157B3b1DAef7B9b62D84";
 let CONTRACT_ABI;
 try {
   const artifact = require('../artifacts/contracts/IrisAccess.sol/IrisAccess.json');

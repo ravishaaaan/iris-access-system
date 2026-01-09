@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 
 // 1. PASTE YOUR CONTRACT ADDRESS HERE
-const CONTRACT_ADDRESS = "0xeC46Cf1ea6DC71B062942d2dE16796526d65Dd6c"; 
+const CONTRACT_ADDRESS = "0xd91FC643019f2f397F79157B3b1DAef7B9b62D84"; 
 
 // 2. The ABI (The Interface)
 const CONTRACT_ABI = [

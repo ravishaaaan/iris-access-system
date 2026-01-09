@@ -3,7 +3,7 @@ const crypto = require("crypto"); // Built-in Node.js security module
 
 async function main() {
   // 🔴 STEP 1: PASTE YOUR REAL CONTRACT ADDRESS HERE 🔴
-  const CONTRACT_ADDRESS = "0xeC46Cf1ea6DC71B062942d2dE16796526d65Dd6c"; 
+  const CONTRACT_ADDRESS = "0xd91FC643019f2f397F79157B3b1DAef7B9b62D84"; 
 
   // Validation: Check if address is valid before running
   if (!CONTRACT_ADDRESS.startsWith("0x") || CONTRACT_ADDRESS.length !== 42) {
