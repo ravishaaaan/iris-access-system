@@ -42,7 +42,7 @@ const CONTRACT_ABI = [
           { "internalType": "string", "name": "name", "type": "string" },
           { "internalType": "string", "name": "email", "type": "string" },
           { "internalType": "string", "name": "phone", "type": "string" },
-          { "internalType": "string", "name": "idNumber", "type": "string" },
+          { "internalType": "string", "name": "idNumber", "type": "string" }, // <--- THIS WAS LIKELY MISSING
           { "internalType": "string", "name": "securityQuestion", "type": "string" },
           { "internalType": "string", "name": "securityAnswer", "type": "string" },
           { "internalType": "string[]", "name": "faceHashes", "type": "string[]" },
