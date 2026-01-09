@@ -80,29 +80,19 @@ let mailTransporter;
 const ensureTransporter = () => {
   if (mailTransporter) return mailTransporter;
 
-  const host = process.env.SMTP_HOST;
-  // Default to 587 if not specified
-  const port = Number(process.env.SMTP_PORT || 587); 
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
 
-  if (!host || !user || !pass) {
-    throw new Error('SMTP Config Missing in .env');
+  if (!user || !pass) {
+    throw new Error('SMTP Config Missing');
   }
 
-  console.log(`📧 Configuring Email: ${host}:${port}`);
+  console.log(`📧 Configuring Email using Gmail Service`);
 
   mailTransporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465, // True ONLY for 465. False for 587 (STARTTLS)
+    service: 'gmail', // ✅ Automatically handles Port 465/587 and TLS
     auth: { user, pass },
-    // ⚠️ CRITICAL FIX FOR RENDER TIMEOUTS ⚠️
-    tls: {
-      ciphers: 'SSLv3',
-      rejectUnauthorized: false,
-    },
-    family: 4 
+    family: 4 // ✅ Keep this to prevent IPv6 timeouts on Render
   });
 
   return mailTransporter;
