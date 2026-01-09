@@ -83,7 +83,7 @@ const ensureTransporter = () => {
   if (mailTransporter) return mailTransporter;
 
   const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 465);
+  const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   const from = process.env.SMTP_FROM;
@@ -95,7 +95,7 @@ const ensureTransporter = () => {
   mailTransporter = nodemailer.createTransport({
     host,
     port,
-    secure: true,
+    secure: port === 465,
     auth: { user, pass },
   });
 
