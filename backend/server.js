@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' })); // Allow large payloads
 
 // Contract Configuration
-let CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "error";
+let CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "0xeC46Cf1ea6DC71B062942d2dE16796526d65Dd6c";
 let CONTRACT_ABI;
 try {
   // Adjust relative path from backend/ to artifacts/
