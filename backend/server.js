@@ -11,7 +11,6 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' })); 
 
 // --- CONTRACT CONFIGURATION ---
-// Ensure this matches your latest deployment
 let CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "0xd91FC643019f2f397F79157B3b1DAef7B9b62D84";
 let CONTRACT_ABI;
 try {
@@ -76,18 +75,19 @@ const adminWallet = new ethers.Wallet(process.env.ADMIN_PRIVATE_KEY, provider);
 const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, adminWallet);
 const usedWallets = new Set();
 
-// --- EMAIL SETUP (FIXED FOR RENDER/GMAIL) ---
+// --- EMAIL SETUP (FIXED FOR GMAIL) ---
 let mailTransporter;
 const ensureTransporter = () => {
   if (mailTransporter) return mailTransporter;
 
   const host = process.env.SMTP_HOST;
+  // Default to 587 if not specified
   const port = Number(process.env.SMTP_PORT || 587); 
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
 
   if (!host || !user || !pass) {
-    throw new Error('SMTP Config Missing');
+    throw new Error('SMTP Config Missing in .env');
   }
 
   console.log(`📧 Configuring Email: ${host}:${port}`);
@@ -95,14 +95,14 @@ const ensureTransporter = () => {
   mailTransporter = nodemailer.createTransport({
     host,
     port,
-    secure: port === 465, // True for 465, False for 587
+    secure: port === 465, // True ONLY for 465. False for 587 (STARTTLS)
     auth: { user, pass },
-    // ⬇️ THIS IS THE FIX FOR TIMEOUTS ⬇️
+    // ⚠️ CRITICAL FIX FOR RENDER TIMEOUTS ⚠️
     tls: {
       ciphers: 'SSLv3',
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
     },
-    family: 4 // Force IPv4
+    family: 4 
   });
 
   return mailTransporter;
@@ -148,22 +148,9 @@ app.post('/api/register', async (req, res) => {
     const { accessCode, name, email, phone, idNumber, question, answer, faceHashes, userWallet } = req.body;
     console.log(`📝 Registering: ${name} (${userWallet})`);
 
-    // Pre-flight check: Is wallet already registered?
-    try {
-        const existing = await contract.getUserProfile(userWallet);
-        // If we get data back, and the name matches, they are registered.
-        // Some nodes might return empty data for non-existent users, others revert.
-        // We check if "isRegistered" is true.
-        const isReg = (existing.isRegistered ?? existing.exists) ?? existing[7];
-        if (isReg) {
-             console.log("🚫 Wallet already registered on-chain");
-             return res.status(400).json({ success: false, error: 'Wallet already registered' });
-        }
-    } catch (e) {
-        // If getUserProfile reverts, it usually means user is NOT registered. Continue.
-    }
-
+    // Reduce hashes
     const reducedHashes = faceHashes.filter((_, i) => i % 5 === 0);
+    console.log(`   Hashes reduced from ${faceHashes.length} to ${reducedHashes.length}`);
 
     const tx = await contract.registerUser(
       userWallet, accessCode, name, email, phone, idNumber, question, answer, reducedHashes,
@@ -174,12 +161,13 @@ app.post('/api/register', async (req, res) => {
     const receipt = await tx.wait();
     console.log(`✅ Mined in Block: ${receipt.blockNumber}`);
 
+    // Send Email
     if (email) {
       try {
         const pdfBuffer = await buildQrPdf({ name, email, wallet: userWallet, qrPayload: userWallet });
         const transporter = ensureTransporter();
         await transporter.sendMail({
-          from: `"Iris Access" <${process.env.SMTP_USER}>`,
+          from: `"Iris Access" <${process.env.SMTP_USER}>`, // Simple From
           to: email,
           subject: 'Your VIP Access QR Pass',
           text: `Welcome ${name}! Your wallet: ${userWallet}`,
@@ -193,10 +181,6 @@ app.post('/api/register', async (req, res) => {
 
     res.json({ success: true, txHash: tx.hash });
   } catch (error) {
-    // Detect "Already Registered" error from blockchain
-    if (error.message.includes("Wallet already registered")) {
-        return res.status(400).json({ success: false, error: 'Wallet already registered' });
-    }
     console.error("❌ Registration Error:", error);
     res.status(500).json({ error: error.message });
   }
@@ -213,9 +197,12 @@ app.post('/api/get-profile', async (req, res) => {
     }
 
     const profile = await contract.getUserProfile(address);
+    // Safe extraction
     const exists = (profile.isRegistered ?? profile.exists) ?? profile[7];
     
-    if (!exists) return res.json({ exists: false });
+    if (!exists) {
+        return res.json({ exists: false });
+    }
 
     res.json({
       name: profile.name ?? profile[0],
