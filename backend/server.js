@@ -12,21 +12,24 @@ app.use(express.json({ limit: '10mb' }));
 
 // --- EMAIL CONFIGURATION ---
 const createTransporter = () => {
+  const port = parseInt(process.env.SMTP_PORT) || 465;
   const config = {
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: false, // true for 465, false for other ports
+    port: port,
+    secure: port === 465, // true for 465, false for 587
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS
     },
     tls: {
-      rejectUnauthorized: false, // Important for some hosting environments
-      ciphers: 'SSLv3'
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2'
     },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 15000,
+    debug: true, // Enable debug logging
+    logger: true // Enable logger
   };
 
   console.log(`📧 Email Config: ${config.host}:${config.port} (user: ${config.auth.user})`);
