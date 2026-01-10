@@ -10,43 +10,6 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' })); 
 
-// --- EMAIL CONFIGURATION ---
-const createTransporter = () => {
-  const port = parseInt(process.env.SMTP_PORT) || 465;
-  const config = {
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: port,
-    secure: port === 465, // true for 465, false for 587
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    },
-    tls: {
-      rejectUnauthorized: false,
-      minVersion: 'TLSv1.2'
-    },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 15000,
-    debug: true, // Enable debug logging
-    logger: true // Enable logger
-  };
-
-  console.log(`📧 Email Config: ${config.host}:${config.port} (user: ${config.auth.user})`);
-  return nodemailer.createTransport(config);
-};
-
-// Verify email configuration on startup
-const transporter = createTransporter();
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('❌ Email configuration error:', error.message);
-    console.log('⚠️  Email sending will be disabled. Check your SMTP settings.');
-  } else {
-    console.log('✅ Email server is ready');
-  }
-});
-
 // --- CONTRACT SETUP ---
 let CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "0xd91FC643019f2f397F79157B3b1DAef7B9b62D84";
 let CONTRACT_ABI;
@@ -144,77 +107,6 @@ const buildQrPdf = async ({ name, email, wallet, qrPayload }) => {
   });
 };
 
-// --- EMAIL SENDER ---
-const sendAccessPassEmail = async ({ name, email, wallet }) => {
-  try {
-    console.log(`📧 Sending email to: ${email}`);
-    
-    const pdfBuffer = await buildQrPdf({ name, email, wallet, qrPayload: wallet });
-    
-    const mailOptions = {
-      from: process.env.SMTP_FROM || `"Iris Access" <${process.env.SMTP_USER}>`,
-      to: email,
-      subject: '🎫 Your Iris Access Pass',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-size: 28px;">🎫 Iris Access Pass</h1>
-          </div>
-          
-          <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">
-              Hi <strong>${name}</strong>,
-            </p>
-            
-            <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">
-              Your registration is complete! 🎉 Your access pass is attached to this email as a PDF.
-            </p>
-            
-            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; margin: 25px 0;">
-              <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">
-                <strong>Wallet Address:</strong>
-              </p>
-              <p style="margin: 0; color: #1f2937; font-family: 'Courier New', monospace; font-size: 13px; word-break: break-all;">
-                ${wallet}
-              </p>
-            </div>
-            
-            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px;">
-              <p style="margin: 0; color: #92400e; font-size: 14px;">
-                ⚠️ <strong>Important:</strong> This QR code is single-use only. Present it at the venue entrance.
-              </p>
-            </div>
-            
-            <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
-              If you didn't request this, please ignore this email.
-            </p>
-          </div>
-          
-          <div style="text-align: center; margin-top: 20px; padding: 20px; color: #9ca3af; font-size: 12px;">
-            <p style="margin: 0;">Powered by Iris Access System</p>
-          </div>
-        </div>
-      `,
-      attachments: [
-        {
-          filename: `iris-pass-${wallet.slice(0, 8)}.pdf`,
-          content: pdfBuffer,
-          contentType: 'application/pdf'
-        }
-      ]
-    };
-
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`✅ Email sent: ${info.messageId}`);
-    return { success: true, messageId: info.messageId };
-    
-  } catch (error) {
-    console.error(`❌ Email Error:`, error.message);
-    // Return error but don't throw - registration should still succeed
-    return { success: false, error: error.message };
-  }
-};
-
 console.log("✅ Backend Started");
 console.log("📍 Contract:", CONTRACT_ADDRESS);
 
@@ -244,7 +136,7 @@ app.post('/api/validate-code', async (req, res) => {
   }
 });
 
-// 2. REGISTER USER (WITH EMAIL RESTORED)
+// 2. REGISTER USER (THIS WAS MISSING!)
 app.post('/api/register', async (req, res) => {
   try {
     const { accessCode, name, email, phone, idNumber, question, answer, faceHashes, userWallet } = req.body;
@@ -268,20 +160,9 @@ app.post('/api/register', async (req, res) => {
     const receipt = await tx.wait();
     console.log(`✅ Mined in Block: ${receipt.blockNumber}`);
 
-    // Send email with PDF (non-blocking - registration succeeds even if email fails)
-    const emailResult = await sendAccessPassEmail({ name, email, wallet: userWallet });
+    // No email sending here (using download button instead)
     
-    if (!emailResult.success) {
-      console.warn(`⚠️  Registration successful but email failed: ${emailResult.error}`);
-    }
-    
-    res.json({ 
-      success: true, 
-      txHash: tx.hash,
-      emailSent: emailResult.success,
-      emailError: emailResult.success ? null : emailResult.error
-    });
-    
+    res.json({ success: true, txHash: tx.hash });
   } catch (error) {
     if (error.message.includes("Wallet already registered")) {
         return res.status(400).json({ success: false, error: 'Wallet already registered' });
