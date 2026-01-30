@@ -26,3 +26,21 @@
 		@apply px-5 py-2 rounded-full font-semibold transition duration-200 ease-out;
 	}
 }
+
+/* Ensure QR camera preview elements are visible and fill the container */
+.qr-preview,
+.qr-preview * {
+	position: relative !important;
+	width: 100% !important;
+	height: 100% !important;
+}
+
+.qr-preview video,
+.qr-preview canvas {
+	display: block !important;
+	width: 100% !important;
+	height: 100% !important;
+	object-fit: cover !important;
+}
+
+.qr-preview canvas { background: transparent !important; }

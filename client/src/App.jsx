@@ -602,11 +602,13 @@ const App = ({ initialView = "HOME", mode = "guest" }) => {
                       <div className="grid md:grid-cols-[320px,1fr] gap-6 items-center">
                           <div className="rounded-2xl border-2 border-neon/60 bg-transparent overflow-hidden aspect-square">
                               {enableScanner && (
-                                  <QrReader
-                                      onResult={handleScan}
-                                      constraints={{ facingMode: 'environment' }}
-                                      style={{ width: '100%', height: '100%' }}
-                                  />
+                                  <div className="qr-preview" style={{ width: '100%', height: '100%' }}>
+                                      <QrReader
+                                          onResult={handleScan}
+                                          constraints={{ facingMode: 'environment' }}
+                                          style={{ width: '100%', height: '100%' }}
+                                      />
+                                  </div>
                               )}
                           </div>
                           <div className="space-y-3 text-sm text-gray-300">
