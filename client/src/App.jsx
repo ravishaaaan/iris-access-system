@@ -600,17 +600,24 @@ const App = ({ initialView = "HOME", mode = "guest" }) => {
                       </div>
 
                       <div className="grid md:grid-cols-[320px,1fr] gap-6 items-center">
-                          <div className="rounded-2xl border-2 border-neon/60 bg-transparent overflow-hidden aspect-square">
-                              {enableScanner && (
-                                  <div className="qr-preview" style={{ width: '100%', height: '100%' }}>
-                                      <QrReader
-                                          onResult={handleScan}
-                                          constraints={{ facingMode: 'environment' }}
-                                          style={{ width: '100%', height: '100%' }}
-                                      />
-                                  </div>
-                              )}
-                          </div>
+                                                    <div className="rounded-2xl border-2 border-neon/60 bg-transparent overflow-hidden aspect-square relative">
+                                                            {enableScanner && (
+                                                                <>
+                                                                    <div className="absolute inset-0">
+                                                                        <BouncerPreview active={enableScanner} facing={'environment'} />
+                                                                    </div>
+
+                                                                    {/* Invisible QrReader overlay used only for scanning; keep it present so scanning logic is unchanged */}
+                                                                    <div className="absolute inset-0">
+                                                                        <QrReader
+                                                                            onResult={handleScan}
+                                                                            constraints={{ facingMode: 'environment' }}
+                                                                            style={{ width: '100%', height: '100%', opacity: 0, pointerEvents: 'none' }}
+                                                                        />
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                    </div>
                           <div className="space-y-3 text-sm text-gray-300">
                               <p>Point the camera at the guest's QR. Once scanned, the system fetches their on-chain profile.</p>
                               <ul className="list-disc list-inside space-y-1 text-gray-400">
@@ -891,6 +898,53 @@ const BouncerFaceValidator = ({ storedHashes, verificationStage, onSuccess, onFa
               </div>
           </div>
       );
+};
+
+// Camera preview used by bouncer panel. Starts/stops a getUserMedia stream.
+const BouncerPreview = ({ active = false, facing = 'environment' }) => {
+    const videoRef = React.useRef(null);
+    const streamRef = React.useRef(null);
+
+    React.useEffect(() => {
+        let mounted = true;
+        const start = async () => {
+            if (!active || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+            try {
+                const constraints = { video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } } };
+                const s = await navigator.mediaDevices.getUserMedia(constraints);
+                streamRef.current = s;
+                if (mounted && videoRef.current) {
+                    videoRef.current.srcObject = s;
+                    await videoRef.current.play().catch(() => {});
+                }
+            } catch (err) {
+                console.warn('BouncerPreview: camera failed', err);
+            }
+        };
+
+        if (active) start();
+
+        return () => {
+            mounted = false;
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(t => t.stop());
+                streamRef.current = null;
+            }
+            if (videoRef.current) {
+                try { videoRef.current.pause(); videoRef.current.srcObject = null; } catch(e) {}
+            }
+        };
+    }, [active, facing]);
+
+    return (
+        <video
+            ref={videoRef}
+            muted
+            playsInline
+            autoPlay
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: active ? 'block' : 'none' }}
+        />
+    );
 };
 
 export default App;
