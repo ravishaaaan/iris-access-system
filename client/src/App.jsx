@@ -600,15 +600,15 @@ const App = ({ initialView = "HOME", mode = "guest" }) => {
                       </div>
 
                       <div className="grid md:grid-cols-[320px,1fr] gap-6 items-center">
-                                                    <div className="rounded-2xl border-2 border-neon/60 bg-transparent overflow-hidden aspect-square relative">
+                                                    <div className="rounded-2xl border-2 border-neon/60 overflow-hidden aspect-square relative" style={{ backgroundColor: 'transparent', position: 'relative', width: '320px', height: '320px' }}>
                                                             {enableScanner && (
                                                                 <>
-                                                                    <div className="absolute inset-0">
+                                                                    <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1 }}>
                                                                         <BouncerPreview active={enableScanner} facing={'environment'} />
                                                                     </div>
 
                                                                     {/* Invisible QrReader overlay used only for scanning; keep it present so scanning logic is unchanged */}
-                                                                    <div className="absolute inset-0">
+                                                                    <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 2 }}>
                                                                         <QrReader
                                                                             onResult={handleScan}
                                                                             constraints={{ facingMode: 'environment' }}
@@ -942,7 +942,16 @@ const BouncerPreview = ({ active = false, facing = 'environment' }) => {
             muted
             playsInline
             autoPlay
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: active ? 'block' : 'none' }}
+            style={{ 
+                width: '100%', 
+                height: '100%', 
+                objectFit: 'cover', 
+                display: active ? 'block' : 'none',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                backgroundColor: 'transparent'
+            }}
         />
     );
 };
