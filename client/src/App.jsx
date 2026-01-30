@@ -600,7 +600,7 @@ const App = ({ initialView = "HOME", mode = "guest" }) => {
                       </div>
 
                       <div className="grid md:grid-cols-[320px,1fr] gap-6 items-center">
-                          <div className="rounded-2xl border-2 border-neon/60 bg-black overflow-hidden aspect-square">
+                          <div className="rounded-2xl border-2 border-neon/60 bg-transparent overflow-hidden aspect-square">
                               {enableScanner && (
                                   <QrReader
                                       onResult={handleScan}
